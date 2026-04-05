@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
 import type { VaultData } from './types.js'
+import { isWindows } from './platform.js'
 
 const WALLET_DIR = path.join(os.homedir(), '.ai-wallet')
 const VAULT_FILE = path.join(WALLET_DIR, 'vault.json')
@@ -24,7 +25,7 @@ export function getVaultPath(): string {
 
 export function ensureWalletDir(): void {
   if (!fs.existsSync(WALLET_DIR)) {
-    fs.mkdirSync(WALLET_DIR, { mode: 0o700, recursive: true })
+    fs.mkdirSync(WALLET_DIR, { mode: isWindows() ? undefined : 0o700, recursive: true })
   }
 }
 
@@ -44,6 +45,6 @@ export function writeVault(data: VaultData): void {
 
   // Atomic write: write to temp file then rename
   const tmpFile = VAULT_FILE + '.tmp'
-  fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2), { mode: 0o600 })
+  fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2), { mode: isWindows() ? undefined : 0o600 })
   fs.renameSync(tmpFile, VAULT_FILE)
 }

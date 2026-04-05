@@ -10,7 +10,7 @@ Monorepo with 5 packages:
 |---------|---------|
 | `packages/vault-core` | Encryption (AES-256-GCM), storage, key CRUD — pure Node.js library |
 | `packages/daemon` | Fastify localhost server (port 21520) — REST API for key access |
-| `packages/desktop` | Electron app — bundles daemon, provides UI, manages macOS Keychain |
+| `packages/desktop` | Electron app — bundles daemon, provides UI, manages OS secure storage (Keychain/DPAPI) |
 | `packages/browser-extension` | Chrome MV3 extension — auto-captures keys from Anthropic/OpenAI/Google |
 | `packages/cli` | Minimal CLI (`ai-wallet-cli env`) — used by shell hook for env var injection |
 
@@ -59,7 +59,7 @@ pnpm typecheck
 
 These MUST be maintained at all times:
 
-1. **Master key never on disk in plaintext** — stored only via Electron `safeStorage` (macOS Keychain)
+1. **Master key never on disk in plaintext** — stored only via Electron `safeStorage` (macOS Keychain / Windows DPAPI)
 2. **Daemon binds to 127.0.0.1 only** — never `0.0.0.0`
 3. **DNS rebinding protection** — daemon checks Host header, rejects non-localhost origins
 4. **Bearer tokens hashed before storage** — only SHA-256 hashes in `vault.json`, never plaintext tokens
@@ -73,7 +73,8 @@ These MUST be maintained at all times:
 | `~/.ai-wallet/vault.json` | Encrypted key vault (ciphertext only) |
 | `~/.ai-wallet/master.enc` | Master key encrypted blob (decrypted via safeStorage) |
 | `~/.ai-wallet/daemon.port` | Current daemon port (for client discovery) |
-| `~/.zshrc` | Shell hook for env var injection (appended by installer) |
+| `~/.zshrc` or `~/.bashrc` | Shell hook for env var injection on macOS/Linux |
+| PowerShell `$PROFILE` | Shell hook for env var injection on Windows |
 
 ## Common Workflows
 

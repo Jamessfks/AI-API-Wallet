@@ -17,7 +17,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 })
 
-// Check daemon health periodically and update badge
+// Badge health check using chrome.alarms (survives service worker termination)
 async function updateBadge() {
   const healthy = await checkDaemonHealth()
   if (healthy) {
@@ -29,9 +29,17 @@ async function updateBadge() {
   }
 }
 
-// Check every 30 seconds
-setInterval(updateBadge, 30000)
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === 'health-check') {
+    updateBadge()
+  }
+})
 
-// Check on install/startup
-chrome.runtime.onInstalled.addListener(updateBadge)
-chrome.runtime.onStartup.addListener(updateBadge)
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.alarms.create('health-check', { periodInMinutes: 0.5 })
+  updateBadge()
+})
+
+chrome.runtime.onStartup.addListener(() => {
+  updateBadge()
+})

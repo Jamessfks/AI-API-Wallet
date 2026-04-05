@@ -40,4 +40,7 @@ export function registerIpcHandlers() {
 
   // Daemon info
   ipcMain.handle('daemon:getPort', () => getDaemonPort())
+
+  // Platform info
+  ipcMain.handle('platform:info', () => process.platform)
 }

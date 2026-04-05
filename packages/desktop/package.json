@@ -10,6 +10,26 @@
     "dev": "node build-main.mjs && vite build && electron .",
     "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit"
   },
+  "build": {
+    "appId": "com.ai-wallet.desktop",
+    "productName": "AI API Wallet",
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.developer-tools"
+    },
+    "win": {
+      "target": ["nsis"]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "dist/**/*"
+    ]
+  },
   "dependencies": {
     "@ai-wallet/daemon": "workspace:*",
     "@ai-wallet/vault-core": "workspace:*",

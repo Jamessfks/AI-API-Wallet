@@ -9,21 +9,22 @@ export const KEY_PATTERNS: KeyPattern[] = [
   {
     provider: 'anthropic',
     displayName: 'Anthropic',
-    // Matches sk-ant-api03-..., sk-ant-sid01-..., and other sk-ant- variants
-    regex: /sk-ant-[a-zA-Z0-9_-]{20,}/,
+    // sk-ant-api03-..., sk-ant-sid01-..., etc. Typically ~108 chars total.
+    regex: /sk-ant-[a-zA-Z0-9_-]{20,120}\b/,
     envVar: 'ANTHROPIC_API_KEY',
   },
   {
     provider: 'openai',
     displayName: 'OpenAI',
-    // OpenAI keys: sk-proj-..., sk-svcacct-..., sk-<org>-... (but not sk-ant-)
-    regex: /sk-(?!ant-)[a-zA-Z0-9_-]{20,}/,
+    // sk-proj-..., sk-svcacct-..., sk-<org>-... (but not sk-ant-)
+    regex: /sk-(?!ant-)[a-zA-Z0-9_-]{20,200}\b/,
     envVar: 'OPENAI_API_KEY',
   },
   {
     provider: 'google',
     displayName: 'Google',
-    regex: /AIza[a-zA-Z0-9_-]{30,}/,
+    // AIza keys are exactly 39 chars total
+    regex: /AIza[a-zA-Z0-9_-]{30,50}\b/,
     envVar: 'GOOGLE_API_KEY',
   },
 ]

@@ -1,11 +1,11 @@
-import { KEY_PATTERNS, detectKey, extractKey, type KeyPattern } from '../lib/patterns.js'
+import { detectKey, extractKey, type KeyPattern } from '../lib/patterns.js'
 
-const LOG_PREFIX = '[AI Wallet]'
+const LOG = '[AI Wallet]'
 
 let toastElement: HTMLElement | null = null
-let detectedKeys = new Set<string>()
+const detectedKeys = new Set<string>()
 
-function createToast(provider: string, displayName: string, keyPreview: string): HTMLElement {
+function createToast(displayName: string, keyPreview: string): HTMLElement {
   const toast = document.createElement('div')
   toast.className = 'ai-wallet-toast'
   toast.innerHTML = `
@@ -29,149 +29,142 @@ function createToast(provider: string, displayName: string, keyPreview: string):
   return toast
 }
 
+function removeToast() {
+  if (toastElement) {
+    toastElement.classList.add('ai-wallet-toast-exit')
+    const el = toastElement
+    toastElement = null
+    setTimeout(() => el.remove(), 200)
+  }
+}
+
 function showToast(pattern: KeyPattern, fullKey: string) {
-  // Don't show duplicate toasts
   if (detectedKeys.has(fullKey)) return
   detectedKeys.add(fullKey)
 
-  console.log(LOG_PREFIX, `Detected ${pattern.displayName} key: ${fullKey.slice(0, 12)}...`)
+  console.log(LOG, `Detected ${pattern.displayName} key: ${fullKey.slice(0, 12)}...`)
 
-  // Remove existing toast
   removeToast()
 
   const keyPreview =
     fullKey.length > 12 ? fullKey.slice(0, 8) + '...' + fullKey.slice(-4) : fullKey
 
-  toastElement = createToast(pattern.provider, pattern.displayName, keyPreview)
+  toastElement = createToast(pattern.displayName, keyPreview)
   document.body.appendChild(toastElement)
 
-  // Save button
   const saveBtn = toastElement.querySelector('#ai-wallet-save')
-  saveBtn?.addEventListener('click', async () => {
+  saveBtn?.addEventListener('click', () => {
     const actionsEl = toastElement?.querySelector('#ai-wallet-actions')
     if (actionsEl) {
       actionsEl.innerHTML = '<div class="ai-wallet-toast-body">Saving...</div>'
     }
 
-    // Send to background script → daemon
     chrome.runtime.sendMessage(
       { type: 'SAVE_KEY', provider: pattern.provider, key: fullKey },
       (response) => {
+        if (!actionsEl) return
         if (response?.success) {
-          if (actionsEl) {
-            actionsEl.innerHTML =
-              '<div class="ai-wallet-toast-success">Saved to AI Wallet</div>'
-          }
+          actionsEl.innerHTML =
+            '<div class="ai-wallet-toast-success">Saved to AI Wallet</div>'
           setTimeout(removeToast, 2000)
         } else {
-          if (actionsEl) {
-            actionsEl.innerHTML = `<div class="ai-wallet-toast-error">${response?.error || 'Failed to save'}</div>`
-          }
+          // Safe: use textContent to avoid XSS from daemon error messages
+          const errDiv = document.createElement('div')
+          errDiv.className = 'ai-wallet-toast-error'
+          errDiv.textContent = response?.error || 'Failed to save'
+          actionsEl.replaceChildren(errDiv)
           setTimeout(removeToast, 4000)
         }
       },
     )
   })
 
-  // Dismiss button
-  const dismissBtn = toastElement.querySelector('#ai-wallet-dismiss')
-  dismissBtn?.addEventListener('click', removeToast)
-
-  // Auto-dismiss after 30 seconds
+  toastElement.querySelector('#ai-wallet-dismiss')?.addEventListener('click', removeToast)
   setTimeout(removeToast, 30000)
 }
 
-function removeToast() {
-  if (toastElement) {
-    toastElement.classList.add('ai-wallet-toast-exit')
-    setTimeout(() => {
-      toastElement?.remove()
-      toastElement = null
-    }, 200)
-  }
-}
+// --- Detection helpers ---
 
 function checkText(text: string) {
   if (!text || text.length < 20) return
   const pattern = detectKey(text)
-  if (pattern) {
-    const key = extractKey(text, pattern)
-    if (key) {
-      showToast(pattern, key)
-    }
-  }
+  if (!pattern) return
+  const key = extractKey(text, pattern)
+  if (key) showToast(pattern, key)
 }
 
-function scanTextNode(node: Node) {
-  checkText(node.textContent || '')
-}
-
-function scanElement(element: Element) {
-  // Check text content of the element and its children
-  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
+function scanElement(el: Element) {
+  // Text nodes
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
   let node: Node | null
   while ((node = walker.nextNode())) {
-    scanTextNode(node)
+    checkText(node.textContent || '')
   }
 
-  // Also check input/textarea values and element attributes
-  const inputs = element.querySelectorAll('input, textarea, code, pre, [data-testid]')
-  inputs.forEach((input) => {
-    checkText((input as HTMLInputElement).value || input.textContent || '')
+  // Input/textarea .value (React sets this as a JS property, invisible to tree walker)
+  el.querySelectorAll<HTMLInputElement>('input, textarea').forEach((input) => {
+    checkText(input.value)
+  })
+
+  // Code/pre blocks and common key containers
+  el.querySelectorAll('code, pre, [data-testid]').forEach((el) => {
+    checkText(el.textContent || '')
   })
 }
 
-// Full page scan — checks text nodes, input values, and all element text content
 function fullScan() {
-  // 1. Walk all text nodes
+  // Walk all text nodes
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
   let node: Node | null
   while ((node = walker.nextNode())) {
     checkText(node.textContent || '')
   }
 
-  // 2. Check input/textarea values (React sets .value as property, not visible as text node)
-  document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
-    'input, textarea',
-  ).forEach((el) => {
+  // All inputs
+  document.querySelectorAll<HTMLInputElement>('input, textarea').forEach((el) => {
     checkText(el.value)
   })
 
-  // 3. Check common key display containers
+  // Common key display containers
   document.querySelectorAll(
     'code, pre, [role="textbox"], [data-testid], [class*="key"], [class*="token"], [class*="secret"], [class*="api"], [class*="credential"]',
   ).forEach((el) => {
     checkText(el.textContent || '')
-    // Also check data attributes that might hold key values
-    for (const attr of el.attributes) {
-      if (attr.name.startsWith('data-') && attr.value.length >= 20) {
-        checkText(attr.value)
-      }
-    }
   })
 }
 
-console.log(LOG_PREFIX, 'Content script loaded on', window.location.hostname)
+// --- Start detection ---
+
+console.log(LOG, 'Loaded on', window.location.hostname)
 
 // Initial scan
 fullScan()
 
-// Periodic re-scan: catches React state changes, dynamically revealed keys, etc.
-setInterval(fullScan, 2000)
+// Aggressive scanning for the first 30s (keys in modals appear briefly)
+// then slow down to reduce CPU usage
+let scanCount = 0
+const fastScanId = setInterval(() => {
+  fullScan()
+  scanCount++
+  if (scanCount >= 60) {
+    // After 30s of fast scanning, switch to slow
+    clearInterval(fastScanId)
+    setInterval(fullScan, 3000)
+  }
+}, 500)
 
-// Watch for DOM mutations (new elements appearing, e.g., key reveal modals)
+// MutationObserver for new DOM nodes (modals, revealed keys)
 const observer = new MutationObserver((mutations) => {
   for (const mutation of mutations) {
     for (const node of mutation.addedNodes) {
       if (node instanceof Element) {
         scanElement(node)
       } else if (node.nodeType === Node.TEXT_NODE) {
-        scanTextNode(node)
+        checkText(node.textContent || '')
       }
     }
-
-    if (mutation.type === 'characterData' && mutation.target.textContent) {
-      scanTextNode(mutation.target)
+    if (mutation.type === 'characterData') {
+      checkText(mutation.target.textContent || '')
     }
   }
 })
@@ -182,39 +175,44 @@ observer.observe(document.body, {
   characterData: true,
 })
 
-// Intercept clipboard writes — catches "Copy" buttons that use navigator.clipboard.writeText()
-// This is the primary way provider dashboards let users copy keys
-const originalWriteText = navigator.clipboard.writeText.bind(navigator.clipboard)
+// --- Clipboard interception ---
+// Provider dashboards use navigator.clipboard.writeText() when you click "Copy".
+// This does NOT fire a DOM 'copy' event, so we intercept the API directly.
+
+const origWriteText = navigator.clipboard.writeText.bind(navigator.clipboard)
 navigator.clipboard.writeText = async function (text: string) {
-  console.log(LOG_PREFIX, 'Clipboard write intercepted, length:', text.length)
+  console.log(LOG, 'Clipboard write intercepted, length:', text.length)
   checkText(text)
-  return originalWriteText(text)
+  return origWriteText(text)
 }
 
-// Also intercept the older execCommand('copy') path
+// Fallback: selection-based copy (Ctrl+C / Cmd+C)
 document.addEventListener('copy', () => {
   setTimeout(() => {
-    const selection = document.getSelection()?.toString() || ''
-    checkText(selection)
+    const sel = document.getSelection()?.toString() || ''
+    checkText(sel)
   }, 50)
 })
 
-// Intercept click events on buttons that look like copy buttons
-// This catches cases where the key is in a nearby sibling element
-document.addEventListener('click', (e) => {
-  const target = e.target as HTMLElement
-  if (!target) return
+// Catch clicks on copy-looking buttons, then re-scan their parent container
+document.addEventListener(
+  'click',
+  (e) => {
+    const target = e.target as HTMLElement
+    if (!target) return
 
-  const btn = target.closest('button, [role="button"], [data-copy], [class*="copy"]')
-  if (!btn) return
+    const btn = target.closest('button, [role="button"], [data-copy], [class*="copy"]')
+    if (!btn) return
 
-  // After click, scan nearby elements for keys
-  setTimeout(() => {
-    const parent = btn.parentElement?.parentElement || btn.parentElement
-    if (parent) {
-      scanElement(parent)
-    }
-    // Also re-check clipboard after a copy button click
-    navigator.clipboard.readText().then(checkText).catch(() => {})
-  }, 200)
-}, true)
+    // Re-scan the nearby container after a short delay
+    setTimeout(() => {
+      const container = btn.closest('[class*="modal"], [class*="dialog"], [role="dialog"]')
+        || btn.parentElement?.parentElement
+        || btn.parentElement
+      if (container instanceof Element) {
+        scanElement(container)
+      }
+    }, 200)
+  },
+  true,
+)

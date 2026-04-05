@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import ProviderLogo from '../components/ProviderLogo.js'
 
 const PROVIDERS = [
@@ -19,6 +19,15 @@ export default function AddKey({ onBack }: { onBack: () => void }) {
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
+  const [storageName, setStorageName] = useState('OS secure storage')
+
+  useEffect(() => {
+    window.walletAPI.getPlatform().then((platform) => {
+      if (platform === 'darwin') setStorageName('macOS Keychain')
+      else if (platform === 'win32') setStorageName('Windows DPAPI')
+      else setStorageName('OS keychain')
+    })
+  }, [])
 
   const selectedProvider = PROVIDERS.find((p) => p.id === provider)
 
@@ -130,7 +139,7 @@ export default function AddKey({ onBack }: { onBack: () => void }) {
       </button>
 
       <p className="text-xs text-gray-400 text-center mt-3">
-        Encrypted with AES-256-GCM. Stored in macOS Keychain.
+        Encrypted with AES-256-GCM. Stored in {storageName}.
       </p>
     </div>
   )

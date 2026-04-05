@@ -7,6 +7,38 @@ import os from 'node:os'
 const WALLET_DIR = path.join(os.homedir(), '.ai-wallet')
 const PORT_FILE = path.join(WALLET_DIR, 'daemon.port')
 
+type ShellType = 'posix' | 'powershell' | 'cmd'
+
+function getShellType(): ShellType {
+  // Allow explicit override via --shell flag
+  const shellFlag = process.argv.find((arg) => arg.startsWith('--shell='))
+  if (shellFlag) {
+    const value = shellFlag.split('=')[1]
+    if (value === 'posix' || value === 'powershell' || value === 'cmd') return value
+  }
+
+  // Auto-detect based on environment
+  if (process.env.PSModulePath && !process.env.SHELL) return 'powershell'
+  if (process.platform === 'win32' && !process.env.SHELL) return 'cmd'
+  return 'posix'
+}
+
+function formatExport(envVar: string, value: string, shell: ShellType): string {
+  switch (shell) {
+    case 'powershell': {
+      const escaped = value.replace(/'/g, "''")
+      return `$env:${envVar} = '${escaped}'`
+    }
+    case 'cmd':
+      return `set ${envVar}=${value}`
+    case 'posix':
+    default: {
+      const escaped = value.replace(/'/g, "'\\''")
+      return `export ${envVar}='${escaped}'`
+    }
+  }
+}
+
 const ENV_VAR_MAP: Record<string, string> = {
   anthropic: 'ANTHROPIC_API_KEY',
   openai: 'OPENAI_API_KEY',
@@ -74,12 +106,10 @@ async function main() {
     }
 
     try {
+      const shell = getShellType()
       const keys = await fetchKeys(port, token)
       for (const [envVar, value] of Object.entries(keys)) {
-        // Output shell export statements
-        // Escape single quotes in values for safe shell interpolation
-        const escaped = value.replace(/'/g, "'\\''")
-        console.log(`export ${envVar}='${escaped}'`)
+        console.log(formatExport(envVar, value, shell))
       }
     } catch {
       // Network error — exit silently
@@ -104,6 +134,19 @@ async function main() {
       console.log('AI Wallet daemon: not running')
     }
   } else if (command === 'help' || !command) {
+    const shellHelp =
+      process.platform === 'win32'
+        ? `Shell integration:
+  PowerShell — add to $PROFILE:
+    Invoke-Expression (ai-wallet-cli env | Out-String)
+
+  Or use --shell=posix|powershell|cmd to override auto-detection`
+        : `Shell integration:
+  Add to ~/.zshrc or ~/.bashrc:
+    eval "$(ai-wallet-cli env)"
+
+  On Windows, use --shell=posix|powershell|cmd to override auto-detection`
+
     console.log(`ai-wallet-cli — AI API Wallet command line helper
 
 Usage:
@@ -111,9 +154,7 @@ Usage:
   ai-wallet-cli status   Check daemon status
   ai-wallet-cli help     Show this help message
 
-Shell integration:
-  Add to ~/.zshrc:
-    eval "$(ai-wallet-cli env)"
+${shellHelp}
 `)
   } else {
     console.error(`Unknown command: ${command}`)

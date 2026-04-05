@@ -13,7 +13,7 @@ function createWindow() {
     height: 680,
     minWidth: 400,
     minHeight: 500,
-    titleBarStyle: 'hiddenInset',
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#1a1a2e' : '#ffffff',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -35,7 +35,7 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
-  // Initialize encryption via macOS Keychain
+  // Initialize encryption via OS secure storage (Keychain on macOS, DPAPI on Windows)
   initSafeStorage()
 
   // Start the daemon server
@@ -57,7 +57,7 @@ app.whenReady().then(async () => {
     }
   })
 
-  // macOS: re-create window when dock icon clicked
+  // macOS: re-create window when dock icon clicked (this event only fires on macOS)
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
@@ -66,8 +66,8 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', () => {
-  // On macOS, keep app running in tray
-  if (process.platform !== 'darwin') {
+  // On macOS and Windows, keep app running in system tray
+  if (process.platform === 'linux') {
     app.quit()
   }
 })

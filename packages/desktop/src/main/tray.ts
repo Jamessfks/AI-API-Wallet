@@ -3,7 +3,7 @@ import { Tray, Menu, nativeImage, app } from 'electron'
 let tray: Tray | null = null
 
 export function setupTray(onShowWindow: () => void) {
-  // Create a simple 16x16 tray icon (template image for macOS)
+  // Create a simple tray icon (template image on macOS, standard icon on Windows)
   const icon = nativeImage.createEmpty()
   tray = new Tray(icon)
   tray.setToolTip('AI API Wallet')

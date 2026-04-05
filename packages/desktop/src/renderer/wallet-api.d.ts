@@ -45,6 +45,7 @@ interface WalletAPI {
   approvePairing: (requestId: string) => Promise<string | null>
   denyPairing: (requestId: string) => Promise<boolean>
   getDaemonPort: () => Promise<number | null>
+  getPlatform: () => Promise<string>
 }
 
 declare global {

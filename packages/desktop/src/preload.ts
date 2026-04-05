@@ -19,4 +19,7 @@ contextBridge.exposeInMainWorld('walletAPI', {
 
   // Daemon
   getDaemonPort: () => ipcRenderer.invoke('daemon:getPort'),
+
+  // Platform
+  getPlatform: () => ipcRenderer.invoke('platform:info'),
 })

@@ -63,13 +63,13 @@ export async function startServer(options: DaemonOptions = {}): Promise<{
 }
 
 async function writeDaemonPort(port: number): Promise<void> {
-  const { getWalletDir, ensureWalletDir } = await import('@ai-wallet/vault-core')
+  const { getWalletDir, ensureWalletDir, isWindows } = await import('@ai-wallet/vault-core')
   const fs = await import('node:fs')
   const path = await import('node:path')
 
   ensureWalletDir()
   const portFile = path.join(getWalletDir(), 'daemon.port')
-  fs.writeFileSync(portFile, String(port), { mode: 0o600 })
+  fs.writeFileSync(portFile, String(port), { mode: isWindows() ? undefined : 0o600 })
 }
 
 export { pairingManager } from './pairing.js'

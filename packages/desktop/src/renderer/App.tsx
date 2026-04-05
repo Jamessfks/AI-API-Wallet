@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import KeyList from './pages/KeyList.js'
 import AddKey from './pages/AddKey.js'
 import AuthorizedApps from './pages/AuthorizedApps.js'
@@ -8,11 +8,16 @@ type Page = 'keys' | 'add' | 'apps' | 'settings'
 
 export default function App() {
   const [page, setPage] = useState<Page>('keys')
+  const [isMac, setIsMac] = useState(true)
+
+  useEffect(() => {
+    window.walletAPI.getPlatform().then((p) => setIsMac(p === 'darwin'))
+  }, [])
 
   return (
     <div className="flex flex-col h-screen">
-      {/* Title bar drag area */}
-      <div className="titlebar h-8 flex-shrink-0" />
+      {/* Title bar drag area (macOS only — Windows uses native title bar) */}
+      {isMac && <div className="titlebar h-8 flex-shrink-0" />}
 
       {/* Main content */}
       <div className="flex-1 overflow-auto px-4 pb-4">

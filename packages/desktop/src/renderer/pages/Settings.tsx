@@ -2,10 +2,16 @@ import React, { useEffect, useState } from 'react'
 
 export default function Settings() {
   const [port, setPort] = useState<number | null>(null)
+  const [platform, setPlatform] = useState<string>('darwin')
 
   useEffect(() => {
     window.walletAPI.getDaemonPort().then(setPort)
+    window.walletAPI.getPlatform().then(setPlatform)
   }, [])
+
+  const storageName =
+    platform === 'darwin' ? 'macOS Keychain' : platform === 'win32' ? 'Windows DPAPI' : 'OS keychain'
+  const isWin = platform === 'win32'
 
   return (
     <div>
@@ -31,8 +37,17 @@ export default function Settings() {
           </p>
           <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
             <code className="text-xs font-mono text-gray-600 dark:text-gray-400">
-              # Add to ~/.zshrc:{'\n'}
-              eval "$(ai-wallet-cli env)"
+              {isWin ? (
+                <>
+                  # Add to PowerShell $PROFILE:{'\n'}
+                  Invoke-Expression (ai-wallet-cli env | Out-String)
+                </>
+              ) : (
+                <>
+                  # Add to ~/.zshrc or ~/.bashrc:{'\n'}
+                  eval "$(ai-wallet-cli env)"
+                </>
+              )}
             </code>
           </div>
         </div>
@@ -58,7 +73,7 @@ export default function Settings() {
             AI API Wallet v0.1.0
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Keys encrypted with AES-256-GCM. Master key stored in macOS Keychain.
+            Keys encrypted with AES-256-GCM. Master key stored in {storageName}.
           </p>
         </div>
       </div>

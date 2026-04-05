@@ -16,6 +16,7 @@ export type {
 } from './types.js'
 export type { SafeStorageProvider } from './master-key.js'
 export { PROVIDERS, ENV_VAR_MAP } from './types.js'
+export { isWindows, isMacOS, getSecureStorageName } from './platform.js'
 
 function makeKeyPrefix(key: string): string {
   if (key.length <= 12) return key.slice(0, 4) + '...' + key.slice(-2)

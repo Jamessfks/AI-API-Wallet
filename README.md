@@ -4,12 +4,12 @@
 
 Stop copy-pasting API keys. Stop losing them in `.env` files. Stop storing them in plaintext.
 
-AI API Wallet captures your API keys from provider dashboards, encrypts them with AES-256-GCM in macOS Keychain, and delivers them to every tool you use — automatically.
+AI API Wallet captures your API keys from provider dashboards, encrypts them with AES-256-GCM in your OS secure storage (macOS Keychain / Windows DPAPI), and delivers them to every tool you use — automatically.
 
 ```
 You sign up for Claude API
   → Browser extension captures the key (zero copy-paste)
-  → Wallet encrypts it in macOS Keychain
+  → Wallet encrypts it in OS secure storage
   → Open terminal → ANTHROPIC_API_KEY is already set
   → OpenClaw, VS Code, Python, any SDK — just works
 ```
@@ -40,7 +40,7 @@ The Chrome extension watches Anthropic, OpenAI, and Google AI Studio dashboards.
 Every new terminal session automatically has your keys:
 
 ```bash
-# Added to ~/.zshrc (one-time setup):
+# Added to ~/.zshrc (macOS/Linux) or PowerShell $PROFILE (Windows):
 eval "$(ai-wallet-cli env)"
 
 # Every terminal now has:
@@ -89,7 +89,7 @@ One-time approval. Bearer token stored. App never asks again.
 
 | Package | What it does |
 |---------|-------------|
-| `vault-core` | AES-256-GCM encryption, macOS Keychain storage, key CRUD |
+| `vault-core` | AES-256-GCM encryption, OS secure storage (Keychain/DPAPI), key CRUD |
 | `daemon` | Fastify server on localhost — REST API for key access |
 | `desktop` | Electron app — UI, system tray, pairing dialogs |
 | `browser-extension` | Chrome MV3 — auto-captures keys from provider dashboards |
@@ -102,7 +102,7 @@ One-time approval. Bearer token stored. App never asks again.
 | Invariant | How |
 |-----------|-----|
 | Keys encrypted at rest | AES-256-GCM with per-key random IVs |
-| Master key in hardware | macOS Keychain via Electron `safeStorage` |
+| Master key in hardware | OS secure storage via Electron `safeStorage` (macOS Keychain / Windows DPAPI) |
 | Network isolation | Daemon binds `127.0.0.1` only, never `0.0.0.0` |
 | DNS rebinding protection | Host header validation on every request |
 | Tokens hashed | SHA-256 before storage — plaintext never persisted |
@@ -129,7 +129,7 @@ pnpm build
 pnpm dev
 ```
 
-This starts the Electron app, which initializes macOS Keychain encryption and starts the daemon on `localhost:21520`. Add your API keys through the UI.
+This starts the Electron app, which initializes OS secure storage encryption (macOS Keychain or Windows DPAPI) and starts the daemon on `localhost:21520`. Add your API keys through the UI.
 
 Verify the daemon is running:
 
@@ -142,6 +142,8 @@ curl -s http://127.0.0.1:21520/v1/health
 
 The CLI is how your terminal gets keys from the wallet. You need it on your PATH:
 
+**macOS / Linux:**
+
 ```bash
 # Option A: npm link (from project root)
 cd packages/cli && npm link && cd ../..
@@ -149,6 +151,12 @@ cd packages/cli && npm link && cd ../..
 # Option B: direct symlink (if npm link fails)
 ln -sf "$(pwd)/packages/cli/dist/index.js" /opt/homebrew/bin/ai-wallet-cli
 chmod +x packages/cli/dist/index.js
+```
+
+**Windows (PowerShell):**
+
+```powershell
+cd packages\cli; npm link; cd ..\..
 ```
 
 Verify:
@@ -207,7 +215,9 @@ ai-wallet-cli env
 
 ### Step 5: Install the shell hook
 
-This is the line that makes everything automatic. It runs on every new terminal, fetching your decrypted keys and exporting them as environment variables:
+This is the line that makes everything automatic. It runs on every new terminal, fetching your decrypted keys and exporting them as environment variables.
+
+**macOS / Linux:**
 
 ```bash
 echo '
@@ -215,11 +225,21 @@ echo '
 eval "$(ai-wallet-cli env)"' >> ~/.zshrc
 ```
 
+**Windows (PowerShell):**
+
+```powershell
+# Add to your PowerShell profile (run: notepad $PROFILE)
+Invoke-Expression (ai-wallet-cli env | Out-String)
+```
+
 **Open a new terminal** and verify:
 
 ```bash
+# macOS / Linux
 echo $ANTHROPIC_API_KEY
-# → sk-ant-api03-...
+
+# Windows PowerShell
+echo $env:ANTHROPIC_API_KEY
 ```
 
 That's it. Every tool that reads environment variables now has your keys:
@@ -260,7 +280,7 @@ pnpm --filter @ai-wallet/browser-extension build
 | Desktop | Electron 35 + React 19 + Tailwind CSS 4 |
 | Server | Fastify on localhost |
 | Encryption | AES-256-GCM via Node.js `crypto` |
-| Key Storage | macOS Keychain (Electron `safeStorage`) |
+| Key Storage | OS secure storage — Electron `safeStorage` (macOS Keychain / Windows DPAPI) |
 | Extension | Chrome Manifest V3 |
 | Tests | Vitest (19 tests) |
 
@@ -310,16 +330,16 @@ Yes. The daemon that decrypts and serves your keys runs inside the Electron app.
 Open a new terminal tab. The shell hook runs fresh on every session, so it picks up new keys immediately.
 
 **Q: Does this work in VS Code's integrated terminal?**
-Yes. VS Code's terminal sources your `.zshrc`, so the hook runs automatically.
+Yes. VS Code's terminal sources your `.zshrc` (macOS/Linux) or PowerShell `$PROFILE` (Windows), so the hook runs automatically.
 
 **Q: Why not just use `.env` files?**
-`.env` files are plaintext on disk, per-project (you need one in every repo), and easy to accidentally commit to git. AI API Wallet encrypts keys with AES-256-GCM, stores the master key in macOS Keychain, and injects keys into every project globally.
+`.env` files are plaintext on disk, per-project (you need one in every repo), and easy to accidentally commit to git. AI API Wallet encrypts keys with AES-256-GCM, stores the master key in OS secure storage (macOS Keychain / Windows DPAPI), and injects keys into every project globally.
 
 **Q: Can other apps on my machine steal my keys?**
 Only paired apps (approved via the desktop UI) can access keys. Each app gets a unique bearer token with explicit per-provider permissions. You can revoke access from the Connected Apps screen at any time.
 
 **Q: What happens if I lose my machine?**
-Your keys are encrypted at rest with AES-256-GCM. The master key is in macOS Keychain, which is itself encrypted with your macOS login password. An attacker would need your login password to decrypt anything.
+Your keys are encrypted at rest with AES-256-GCM. The master key is in OS secure storage (macOS Keychain / Windows DPAPI), which is itself protected by your OS login credentials. An attacker would need your login password to decrypt anything.
 
 ---
 

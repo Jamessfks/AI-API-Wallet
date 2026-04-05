@@ -2,10 +2,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { generateMasterKey } from './encryption.js'
 import { getWalletDir, ensureWalletDir } from './storage.js'
+import { isWindows } from './platform.js'
 
 const MASTER_KEY_FILE = 'master.enc'
 
-// In Electron, safeStorage encrypts via macOS Keychain.
+// In Electron, safeStorage encrypts via OS secure storage
+// (macOS Keychain, Windows DPAPI, or libsecret/kwallet on Linux).
 // Outside Electron (CLI, daemon standalone), we need the Electron app running.
 // This interface allows the desktop app to inject the real safeStorage implementation.
 export interface SafeStorageProvider {
@@ -49,10 +51,10 @@ export function initMasterKey(): Buffer {
 
     if (safeStorageProvider && safeStorageProvider.isEncryptionAvailable()) {
       const encrypted = safeStorageProvider.encryptString(hex)
-      fs.writeFileSync(keyPath, encrypted, { mode: 0o600 })
+      fs.writeFileSync(keyPath, encrypted, { mode: isWindows() ? undefined : 0o600 })
     } else {
       // Fallback: store raw hex (development only)
-      fs.writeFileSync(keyPath, hex, { mode: 0o600 })
+      fs.writeFileSync(keyPath, hex, { mode: isWindows() ? undefined : 0o600 })
     }
   }
 
