@@ -14,6 +14,15 @@ You sign up for Claude API
   → OpenClaw, VS Code, Python, any SDK — just works
 ```
 
+<p align="center">
+  <img src="docs/screenshot-keys.png" alt="API Keys view — encrypted keys with masked previews" width="360">
+  &nbsp;&nbsp;&nbsp;
+  <img src="docs/screenshot-apps.png" alt="Connected Apps — manage which apps can access your keys" width="360">
+</p>
+<p align="center">
+  <em>Left: Your API keys, encrypted and masked. Right: Connected apps with one-click revoke.</em>
+</p>
+
 ---
 
 ## How It Works
