@@ -1,0 +1,131 @@
+.ai-wallet-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2147483647;
+  background: #1a1a2e;
+  color: #ffffff;
+  border-radius: 16px;
+  padding: 16px 20px;
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.3),
+    0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  max-width: 360px;
+  animation: ai-wallet-slide-in 0.3s ease-out;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ai-wallet-toast-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ai-wallet-toast-icon {
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.ai-wallet-toast-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.ai-wallet-toast-body {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.ai-wallet-toast-key {
+  font-family: 'SF Mono', Monaco, 'Cascadia Mono', monospace;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.ai-wallet-toast-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ai-wallet-toast-btn {
+  flex: 1;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+}
+
+.ai-wallet-toast-btn-primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.ai-wallet-toast-btn-primary:hover {
+  background: #2563eb;
+}
+
+.ai-wallet-toast-btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.ai-wallet-toast-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.ai-wallet-toast-success {
+  color: #10b981;
+  font-weight: 500;
+  font-size: 13px;
+  text-align: center;
+  padding: 4px 0;
+}
+
+.ai-wallet-toast-error {
+  color: #ef4444;
+  font-size: 12px;
+  text-align: center;
+  padding: 4px 0;
+}
+
+@keyframes ai-wallet-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ai-wallet-slide-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+
+.ai-wallet-toast-exit {
+  animation: ai-wallet-slide-out 0.2s ease-in forwards;
+}

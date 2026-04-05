@@ -1,0 +1,29 @@
+node_modules/
+dist/
+.turbo/
+*.tsbuildinfo
+
+# Electron
+packages/desktop/out/
+packages/desktop/release/
+
+# Browser extension
+packages/browser-extension/dist/
+
+# Environment
+.env
+.env.local
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Testing
+coverage/

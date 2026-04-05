@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "AI API Wallet",
+  "version": "0.1.0",
+  "description": "Auto-capture API keys from AI provider dashboards. Zero copy-paste.",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
+  "background": {
+    "service_worker": "src/background/service-worker.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://console.anthropic.com/*",
+        "https://platform.openai.com/*",
+        "https://aistudio.google.com/*",
+        "https://makersuite.google.com/*"
+      ],
+      "js": ["src/content/detector.ts"],
+      "css": ["src/content/overlay.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_title": "AI API Wallet"
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}

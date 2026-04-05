@@ -1,0 +1,42 @@
+@import 'tailwindcss';
+
+/* Custom wallet-style styling */
+:root {
+  --wallet-blue: #3b82f6;
+  --wallet-purple: #8b5cf6;
+  --wallet-green: #10b981;
+}
+
+body {
+  margin: 0;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  overflow: hidden;
+}
+
+/* Draggable title bar area */
+.titlebar {
+  -webkit-app-region: drag;
+}
+
+.titlebar button,
+.titlebar a,
+.titlebar input {
+  -webkit-app-region: no-drag;
+}
+
+/* Smooth page transitions */
+.page-enter {
+  opacity: 0;
+  transform: translateX(10px);
+}
+
+.page-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    opacity 200ms,
+    transform 200ms;
+}

@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm install)",
+      "Bash(pnpm build*)",
+      "Bash(pnpm test*)",
+      "Bash(pnpm lint*)",
+      "Bash(pnpm typecheck*)",
+      "Bash(pnpm dev*)",
+      "Bash(pnpm --filter *)",
+      "Bash(npx vitest *)",
+      "Bash(npx tsc *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git branch*)"
+    ],
+    "deny": [
+      "Read(/Users/*/.ai-wallet/**)",
+      "Edit(/Users/*/.ai-wallet/**)",
+      "Write(/Users/*/.ai-wallet/**)",
+      "Bash(*~/.ai-wallet*)",
+      "Bash(*0.0.0.0*)"
+    ]
+  },
+  "hooks": {
+    "postToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'if echo \"$CLAUDE_FILE_PATH\" | grep -qE \"packages/(daemon|vault-core)/src/\"; then echo \"⚠️  SECURITY-SENSITIVE FILE MODIFIED. Verify the 6 security invariants in CLAUDE.md: (1) master key never on disk in plaintext, (2) daemon binds 127.0.0.1 only, (3) DNS rebinding protection, (4) bearer tokens hashed before storage, (5) per-key random IVs, (6) vault file contains only ciphertext.\"; fi'"
+          }
+        ]
+      }
+    ]
+  }
+}
