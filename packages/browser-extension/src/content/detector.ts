@@ -1,5 +1,7 @@
 import { KEY_PATTERNS, detectKey, extractKey, type KeyPattern } from '../lib/patterns.js'
 
+const LOG_PREFIX = '[AI Wallet]'
+
 let toastElement: HTMLElement | null = null
 let detectedKeys = new Set<string>()
 
@@ -31,6 +33,8 @@ function showToast(pattern: KeyPattern, fullKey: string) {
   // Don't show duplicate toasts
   if (detectedKeys.has(fullKey)) return
   detectedKeys.add(fullKey)
+
+  console.log(LOG_PREFIX, `Detected ${pattern.displayName} key: ${fullKey.slice(0, 12)}...`)
 
   // Remove existing toast
   removeToast()
@@ -87,10 +91,8 @@ function removeToast() {
   }
 }
 
-function scanTextNode(node: Node) {
-  const text = node.textContent || ''
-  if (text.length < 20) return
-
+function checkText(text: string) {
+  if (!text || text.length < 20) return
   const pattern = detectKey(text)
   if (pattern) {
     const key = extractKey(text, pattern)
@@ -98,6 +100,10 @@ function scanTextNode(node: Node) {
       showToast(pattern, key)
     }
   }
+}
+
+function scanTextNode(node: Node) {
+  checkText(node.textContent || '')
 }
 
 function scanElement(element: Element) {
@@ -108,29 +114,54 @@ function scanElement(element: Element) {
     scanTextNode(node)
   }
 
-  // Also check input/textarea values
+  // Also check input/textarea values and element attributes
   const inputs = element.querySelectorAll('input, textarea, code, pre, [data-testid]')
   inputs.forEach((input) => {
-    const value = (input as HTMLInputElement).value || input.textContent || ''
-    if (value.length >= 20) {
-      const pattern = detectKey(value)
-      if (pattern) {
-        const key = extractKey(value, pattern)
-        if (key) {
-          showToast(pattern, key)
-        }
+    checkText((input as HTMLInputElement).value || input.textContent || '')
+  })
+}
+
+// Full page scan — checks text nodes, input values, and all element text content
+function fullScan() {
+  // 1. Walk all text nodes
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+  let node: Node | null
+  while ((node = walker.nextNode())) {
+    checkText(node.textContent || '')
+  }
+
+  // 2. Check input/textarea values (React sets .value as property, not visible as text node)
+  document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+    'input, textarea',
+  ).forEach((el) => {
+    checkText(el.value)
+  })
+
+  // 3. Check common key display containers
+  document.querySelectorAll(
+    'code, pre, [role="textbox"], [data-testid], [class*="key"], [class*="token"], [class*="secret"], [class*="api"], [class*="credential"]',
+  ).forEach((el) => {
+    checkText(el.textContent || '')
+    // Also check data attributes that might hold key values
+    for (const attr of el.attributes) {
+      if (attr.name.startsWith('data-') && attr.value.length >= 20) {
+        checkText(attr.value)
       }
     }
   })
 }
 
+console.log(LOG_PREFIX, 'Content script loaded on', window.location.hostname)
+
 // Initial scan
-scanElement(document.body)
+fullScan()
+
+// Periodic re-scan: catches React state changes, dynamically revealed keys, etc.
+setInterval(fullScan, 2000)
 
 // Watch for DOM mutations (new elements appearing, e.g., key reveal modals)
 const observer = new MutationObserver((mutations) => {
   for (const mutation of mutations) {
-    // Check added nodes
     for (const node of mutation.addedNodes) {
       if (node instanceof Element) {
         scanElement(node)
@@ -139,21 +170,6 @@ const observer = new MutationObserver((mutations) => {
       }
     }
 
-    // Check attribute changes on inputs (value changes)
-    if (mutation.type === 'attributes' && mutation.target instanceof HTMLInputElement) {
-      const value = mutation.target.value
-      if (value.length >= 20) {
-        const pattern = detectKey(value)
-        if (pattern) {
-          const key = extractKey(value, pattern)
-          if (key) {
-            showToast(pattern, key)
-          }
-        }
-      }
-    }
-
-    // Check characterData changes (text content updates)
     if (mutation.type === 'characterData' && mutation.target.textContent) {
       scanTextNode(mutation.target)
     }
@@ -164,6 +180,41 @@ observer.observe(document.body, {
   childList: true,
   subtree: true,
   characterData: true,
-  attributes: true,
-  attributeFilter: ['value'],
 })
+
+// Intercept clipboard writes — catches "Copy" buttons that use navigator.clipboard.writeText()
+// This is the primary way provider dashboards let users copy keys
+const originalWriteText = navigator.clipboard.writeText.bind(navigator.clipboard)
+navigator.clipboard.writeText = async function (text: string) {
+  console.log(LOG_PREFIX, 'Clipboard write intercepted, length:', text.length)
+  checkText(text)
+  return originalWriteText(text)
+}
+
+// Also intercept the older execCommand('copy') path
+document.addEventListener('copy', () => {
+  setTimeout(() => {
+    const selection = document.getSelection()?.toString() || ''
+    checkText(selection)
+  }, 50)
+})
+
+// Intercept click events on buttons that look like copy buttons
+// This catches cases where the key is in a nearby sibling element
+document.addEventListener('click', (e) => {
+  const target = e.target as HTMLElement
+  if (!target) return
+
+  const btn = target.closest('button, [role="button"], [data-copy], [class*="copy"]')
+  if (!btn) return
+
+  // After click, scan nearby elements for keys
+  setTimeout(() => {
+    const parent = btn.parentElement?.parentElement || btn.parentElement
+    if (parent) {
+      scanElement(parent)
+    }
+    // Also re-check clipboard after a copy button click
+    navigator.clipboard.readText().then(checkText).catch(() => {})
+  }, 200)
+}, true)

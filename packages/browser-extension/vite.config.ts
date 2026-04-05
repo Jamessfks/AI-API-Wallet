@@ -15,8 +15,16 @@ function copyExtensionFiles() {
       manifest.content_scripts[0].js = ['content/detector.js']
       manifest.content_scripts[0].css = ['content/overlay.css']
       manifest.action.default_popup = 'popup/popup.html'
-      delete manifest.icons // No icons yet
       fs.writeFileSync(resolve(dist, 'manifest.json'), JSON.stringify(manifest, null, 2))
+
+      // Copy icons
+      const iconsDir = resolve(__dirname, 'icons')
+      if (fs.existsSync(iconsDir)) {
+        fs.mkdirSync(resolve(dist, 'icons'), { recursive: true })
+        for (const file of fs.readdirSync(iconsDir)) {
+          fs.copyFileSync(resolve(iconsDir, file), resolve(dist, 'icons', file))
+        }
+      }
 
       // Copy CSS
       fs.mkdirSync(resolve(dist, 'content'), { recursive: true })

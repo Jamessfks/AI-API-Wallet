@@ -9,13 +9,14 @@ export const KEY_PATTERNS: KeyPattern[] = [
   {
     provider: 'anthropic',
     displayName: 'Anthropic',
+    // Matches sk-ant-api03-..., sk-ant-sid01-..., and other sk-ant- variants
     regex: /sk-ant-[a-zA-Z0-9_-]{20,}/,
     envVar: 'ANTHROPIC_API_KEY',
   },
   {
     provider: 'openai',
     displayName: 'OpenAI',
-    // OpenAI keys start with sk- but not sk-ant-
+    // OpenAI keys: sk-proj-..., sk-svcacct-..., sk-<org>-... (but not sk-ant-)
     regex: /sk-(?!ant-)[a-zA-Z0-9_-]{20,}/,
     envVar: 'OPENAI_API_KEY',
   },

@@ -3,7 +3,7 @@
   "name": "AI API Wallet",
   "version": "0.1.0",
   "description": "Auto-capture API keys from AI provider dashboards. Zero copy-paste.",
-  "permissions": ["activeTab", "storage"],
+  "permissions": ["activeTab", "storage", "clipboardRead"],
   "host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
   "background": {
     "service_worker": "src/background/service-worker.ts",

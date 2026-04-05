@@ -16,15 +16,16 @@
       "Bash(git branch*)"
     ],
     "deny": [
-      "Read(/Users/*/.ai-wallet/**)",
-      "Edit(/Users/*/.ai-wallet/**)",
-      "Write(/Users/*/.ai-wallet/**)",
+      "Read(~/.ai-wallet/**)",
+      "Edit(~/.ai-wallet/**)",
+      "Write(~/.ai-wallet/**)",
       "Bash(*~/.ai-wallet*)",
+      "Bash(*.ai-wallet*)",
       "Bash(*0.0.0.0*)"
     ]
   },
   "hooks": {
-    "postToolUse": [
+    "PostToolUse": [
       {
         "matcher": "Write|Edit",
         "hooks": [

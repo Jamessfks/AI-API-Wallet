@@ -110,37 +110,144 @@ One-time approval. Bearer token stored. App never asks again.
 
 ---
 
-## Quick Start
+## Setup Guide (5 minutes)
+
+There are 6 steps. Steps 1–2 get the app running. Steps 3–5 connect your terminal. Step 6 is optional (browser extension for auto-capture).
+
+### Step 1: Build the project
 
 ```bash
-# Clone and install
 git clone https://github.com/Jamessfks/AI-API-Wallet.git
 cd AI-API-Wallet
 pnpm install
-
-# Run tests (19 passing)
-pnpm test
-
-# Launch the desktop app
-cd packages/desktop
-node build-main.mjs && npx vite build && npx electron .
+pnpm build
 ```
 
-### Browser Extension
+### Step 2: Launch the desktop app
+
+```bash
+pnpm dev
+```
+
+This starts the Electron app, which initializes macOS Keychain encryption and starts the daemon on `localhost:21520`. Add your API keys through the UI.
+
+Verify the daemon is running:
+
+```bash
+curl -s http://127.0.0.1:21520/v1/health
+# → {"status":"ok","version":"0.1.0"}
+```
+
+### Step 3: Install the CLI globally
+
+The CLI is how your terminal gets keys from the wallet. You need it on your PATH:
+
+```bash
+# Option A: npm link (from project root)
+cd packages/cli && npm link && cd ../..
+
+# Option B: direct symlink (if npm link fails)
+ln -sf "$(pwd)/packages/cli/dist/index.js" /opt/homebrew/bin/ai-wallet-cli
+chmod +x packages/cli/dist/index.js
+```
+
+Verify:
+
+```bash
+ai-wallet-cli status
+# → AI Wallet daemon: running (port 21520)
+```
+
+### Step 4: Pair the CLI with the daemon
+
+The CLI needs permission to read your keys. This is a one-time pairing step — similar to pairing a Bluetooth device.
+
+**Quick version (one command):**
+
+```bash
+REQUEST_ID=$(curl -s -X POST http://127.0.0.1:21520/v1/pair \
+  -H "Content-Type: application/json" \
+  -d '{"appName":"CLI","permissions":["anthropic","openai","google","cohere","mistral","groq","perplexity","deepseek"]}' | \
+  python3 -c "import sys,json; print(json.load(sys.stdin)['requestId'])")
+
+TOKEN=$(curl -s -X POST "http://127.0.0.1:21520/v1/pair/${REQUEST_ID}/approve" | \
+  python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
+
+echo -n "$TOKEN" > ~/.ai-wallet/cli-token
+chmod 600 ~/.ai-wallet/cli-token
+echo "CLI paired successfully"
+```
+
+**Manual version (if you want to understand each step):**
+
+```bash
+# 1. Create a pairing request
+curl -s -X POST http://127.0.0.1:21520/v1/pair \
+  -H "Content-Type: application/json" \
+  -d '{"appName":"CLI","permissions":["anthropic","openai","google","cohere","mistral","groq","perplexity","deepseek"]}'
+# → {"requestId":"pair_1_...","status":"pending",...}
+
+# 2. Approve it (replace <requestId> with the value from step 1)
+curl -s -X POST http://127.0.0.1:21520/v1/pair/<requestId>/approve
+# → {"status":"approved","token":"abc123..."}
+
+# 3. Save the token (replace <token> with the value from step 2)
+echo -n "<token>" > ~/.ai-wallet/cli-token
+chmod 600 ~/.ai-wallet/cli-token
+```
+
+Verify the pairing works:
+
+```bash
+ai-wallet-cli env
+# → export ANTHROPIC_API_KEY='sk-ant-...'
+# → export OPENAI_API_KEY='sk-...'
+# (one line per stored key)
+```
+
+### Step 5: Install the shell hook
+
+This is the line that makes everything automatic. It runs on every new terminal, fetching your decrypted keys and exporting them as environment variables:
+
+```bash
+echo '
+# AI API Wallet — auto-inject API keys from encrypted vault
+eval "$(ai-wallet-cli env)"' >> ~/.zshrc
+```
+
+**Open a new terminal** and verify:
+
+```bash
+echo $ANTHROPIC_API_KEY
+# → sk-ant-api03-...
+```
+
+That's it. Every tool that reads environment variables now has your keys:
+
+```bash
+# Python
+python3 -c "import os; print(os.environ.get('ANTHROPIC_API_KEY', 'not set'))"
+
+# Node.js
+node -e "console.log(process.env.ANTHROPIC_API_KEY)"
+
+# Claude Code, OpenClaw, LangChain, curl — all just work
+```
+
+> **Note:** The desktop app must be running for keys to be injected. If the app isn't running, the shell hook exits silently — your terminal still works, you just won't have the env vars until you open the app.
+
+### Step 6: Install the browser extension (optional)
+
+The Chrome extension auto-detects API keys when you visit provider dashboards and offers to save them with one click — no copy-paste needed.
 
 ```bash
 pnpm --filter @ai-wallet/browser-extension build
 ```
 
-Then in Chrome: `chrome://extensions` → Developer Mode → Load Unpacked → select `packages/browser-extension/dist/`
-
-### Shell Hook
-
-Add to `~/.zshrc`:
-
-```bash
-eval "$(ai-wallet-cli env)"
-```
+1. Open Chrome → `chrome://extensions`
+2. Enable **Developer mode** (top right toggle)
+3. Click **Load unpacked** → select `packages/browser-extension/dist/`
+4. Visit `console.anthropic.com` or `platform.openai.com` — the extension detects keys automatically
 
 ---
 
@@ -191,6 +298,28 @@ curl -X POST http://localhost:21520/v1/pair \
 curl -H "Authorization: Bearer <token>" \
   http://localhost:21520/v1/keys/anthropic
 ```
+
+---
+
+## FAQ
+
+**Q: Do I need the desktop app running all the time?**
+Yes. The daemon that decrypts and serves your keys runs inside the Electron app. If you quit it, `ai-wallet-cli env` exits silently (won't break your terminal), but keys won't be injected until you reopen the app. Tip: enable "Launch at Login" from the system tray menu.
+
+**Q: I added a new key. How do I get it in my terminal?**
+Open a new terminal tab. The shell hook runs fresh on every session, so it picks up new keys immediately.
+
+**Q: Does this work in VS Code's integrated terminal?**
+Yes. VS Code's terminal sources your `.zshrc`, so the hook runs automatically.
+
+**Q: Why not just use `.env` files?**
+`.env` files are plaintext on disk, per-project (you need one in every repo), and easy to accidentally commit to git. AI API Wallet encrypts keys with AES-256-GCM, stores the master key in macOS Keychain, and injects keys into every project globally.
+
+**Q: Can other apps on my machine steal my keys?**
+Only paired apps (approved via the desktop UI) can access keys. Each app gets a unique bearer token with explicit per-provider permissions. You can revoke access from the Connected Apps screen at any time.
+
+**Q: What happens if I lose my machine?**
+Your keys are encrypted at rest with AES-256-GCM. The master key is in macOS Keychain, which is itself encrypted with your macOS login password. An attacker would need your login password to decrypt anything.
 
 ---
 
