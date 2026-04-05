@@ -68,7 +68,7 @@ function getToken(): string | null {
   }
 }
 
-async function fetchKeys(port: number, token: string): Promise<Record<string, string>> {
+async function fetchKeys(port: number, token: string, debug = false): Promise<Record<string, string>> {
   const keys: Record<string, string> = {}
 
   for (const [provider, envVar] of Object.entries(ENV_VAR_MAP)) {
@@ -80,9 +80,12 @@ async function fetchKeys(port: number, token: string): Promise<Record<string, st
       if (response.ok) {
         const data = (await response.json()) as { key: string }
         keys[envVar] = data.key
+      } else if (debug) {
+        const body = await response.text()
+        console.error(`[debug] ${provider}: HTTP ${response.status} — ${body}`)
       }
-    } catch {
-      // Provider key not stored or daemon error — skip silently
+    } catch (err: any) {
+      if (debug) console.error(`[debug] ${provider}: fetch error — ${err.message}`)
     }
   }
 
@@ -92,27 +95,33 @@ async function fetchKeys(port: number, token: string): Promise<Record<string, st
 async function main() {
   const command = process.argv[2]
 
+  const debug = process.argv.includes('--debug')
+
   if (command === 'env') {
     const port = getDaemonPort()
     if (!port) {
-      // Daemon not running — exit silently (shell hook should not break terminal)
+      if (debug) console.error('[debug] No daemon port file found — is the app running?')
       process.exit(0)
     }
+    if (debug) console.error(`[debug] Daemon port: ${port}`)
 
     const token = getToken()
     if (!token) {
-      // Not paired — exit silently
+      if (debug) console.error('[debug] No cli-token file — run the pairing step first')
       process.exit(0)
     }
+    if (debug) console.error(`[debug] Token loaded (${token.length} chars)`)
 
     try {
       const shell = getShellType()
-      const keys = await fetchKeys(port, token)
+      if (debug) console.error(`[debug] Shell type: ${shell}`)
+      const keys = await fetchKeys(port, token, debug)
+      if (debug) console.error(`[debug] Keys fetched: ${Object.keys(keys).length} keys`)
       for (const [envVar, value] of Object.entries(keys)) {
         console.log(formatExport(envVar, value, shell))
       }
-    } catch {
-      // Network error — exit silently
+    } catch (err: any) {
+      if (debug) console.error(`[debug] Network error: ${err.message}`)
       process.exit(0)
     }
   } else if (command === 'status') {
